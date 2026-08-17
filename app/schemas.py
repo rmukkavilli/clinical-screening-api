@@ -11,3 +11,13 @@ class PatientResponse(PatientCreate):
     id: int
 
     model_config = ConfigDict(from_attributes=True)
+
+class ScreeningCreate(BaseModel):
+    patient_id: int
+
+
+class ScreeningResponse(ScreeningCreate):
+    id: int
+    status: str
+
+    model_config = ConfigDict(from_attributes=True)
