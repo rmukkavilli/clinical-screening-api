@@ -1,5 +1,5 @@
 from datetime import date
-
+from typing import Literal
 from pydantic import BaseModel, EmailStr, ConfigDict
 
 class PatientCreate(BaseModel):
@@ -21,3 +21,11 @@ class ScreeningResponse(ScreeningCreate):
     status: str
 
     model_config = ConfigDict(from_attributes=True)
+
+class ScreeningStatusUpdate(BaseModel):
+    status: Literal[
+        "scheduled",
+        "in_progress",
+        "completed",
+        "failed",
+    ]
