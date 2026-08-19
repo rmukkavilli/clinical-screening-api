@@ -1,15 +1,3 @@
-cd C:\Users\ravir\OneDrive\Desktop\pytest-fhir\rmukkavilli\clinical-screening-api
-
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-
-.\.venv\Scripts\Activate.ps1
-
-python -m pytest
-
-fastapi dev app\main.py
-
-
-
 # Clinical Screening API
 
 A backend portfolio project built with **FastAPI**, **SQLAlchemy**, **PostgreSQL**, **Alembic**, and **PyTest**.
@@ -1088,4 +1076,16 @@ The next engineering task is:
 
 ```text
 Dockerize FastAPI + PostgreSQL
+```
+# Additional Instructions
+```text
+cd C:\Users\ravir\OneDrive\Desktop\pytest-fhir\rmukkavilli\clinical-screening-api
+
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
+.\.venv\Scripts\Activate.ps1
+
+python -m pytest
+
+fastapi dev app\main.py
 ```
