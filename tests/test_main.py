@@ -7,6 +7,8 @@ from sqlalchemy.pool import StaticPool
 from app.main import app
 from app.database import Base, get_db
 from app import models
+from sqlalchemy import event
+from app.models import ScreeningStatusHistory
 
 # ---------------------------------------
 # Test database setup
@@ -533,3 +535,196 @@ def test_get_all_screenings():
 
     assert response.status_code == 200
     assert len(response.json()) == 2
+
+
+def test_get_screenings_by_status():
+    patient_response = client.post(
+        "/patients",
+        json={
+            "full_name": "Ravi",
+            "date_of_birth": "1985-05-20",
+            "email": "ravi@example.com",
+        },
+    )
+
+    patient_id = patient_response.json()["id"]
+
+    screening = client.post(
+        "/screenings",
+        json={"patient_id": patient_id},
+    )
+    screening_id = screening.json()["id"]
+
+    client.patch(
+        f"/screenings/{screening_id}/history",
+        json={"status": "in_progress"},
+    )
+
+    response = client.get(f"/screenings/{screening_id}/history")
+    
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["screening_id"] == screening_id
+    assert response.json()[0]["from_status"] is None
+    assert response.json()[0]["to_status"] == "scheduled"
+
+    update_response = client.patch(
+        f"/screenings/{screening_id}/status",
+        json={"status": "in_progress"},
+    )
+    assert update_response.status_code == 200
+
+    # Fetch the history again to see the newly saved entry.
+    response = client.get(f"/screenings/{screening_id}/history")
+
+
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+    assert response.json()[1]["screening_id"] == screening_id
+    assert response.json()[1]["from_status"] == "scheduled"
+    assert response.json()[1]["to_status"] == "in_progress"
+
+    update_response_2 = client.patch(
+        f"/screenings/{screening_id}/status",
+        json={"status": "completed"},
+    )
+    assert update_response_2.status_code == 200
+
+    # Fetch the history again to see the newly saved entry.
+    response = client.get(f"/screenings/{screening_id}/history")
+    
+    print(response.json())
+    assert response.status_code == 200
+    assert len(response.json()) == 3
+    assert response.json()[2]["screening_id"] == screening_id
+    assert response.json()[2]["from_status"] == "in_progress"
+    assert response.json()[2]["to_status"] == "completed"
+
+
+def test_get_screenings_by_status_409():
+    patient_response = client.post(
+        "/patients",
+        json={
+            "full_name": "Ravi",
+            "date_of_birth": "1985-05-20",
+            "email": "ravi@example.com",
+        },
+    )
+
+    patient_id = patient_response.json()["id"]
+
+    screening = client.post(
+        "/screenings",
+        json={"patient_id": patient_id},
+    )
+    screening_id = screening.json()["id"]
+
+    client.patch(
+        f"/screenings/{screening_id}/history",
+        json={"status": "in_progress"},
+    )
+
+    response = client.get(f"/screenings/{screening_id}/history")
+    
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["screening_id"] == screening_id
+    assert response.json()[0]["from_status"] is None
+    assert response.json()[0]["to_status"] == "scheduled"
+
+    update_response = client.patch(
+        f"/screenings/{screening_id}/status",
+        json={"status": "in_progress"},
+    )
+    assert update_response.status_code == 200
+
+    # Fetch the history again to see the newly saved entry.
+    response = client.get(f"/screenings/{screening_id}/history")
+
+
+    assert response.status_code == 200
+    assert len(response.json()) == 2
+    assert response.json()[1]["screening_id"] == screening_id
+    assert response.json()[1]["from_status"] == "scheduled"
+    assert response.json()[1]["to_status"] == "in_progress"
+
+    update_response_2 = client.patch(
+        f"/screenings/{screening_id}/status",
+        json={"status": "completed"},
+    )
+    assert update_response_2.status_code == 200
+
+    # Fetch the history again to see the newly saved entry.
+    response = client.get(f"/screenings/{screening_id}/history")
+    
+    assert response.status_code == 200
+    assert len(response.json()) == 3
+    assert response.json()[2]["screening_id"] == screening_id
+    assert response.json()[2]["from_status"] == "in_progress"
+    assert response.json()[2]["to_status"] == "completed"
+
+    update_response_3 = client.patch(
+        f"/screenings/{screening_id}/status",
+        json={"status": "in_progress"},
+    )
+    assert update_response_3.status_code == 409
+   
+    screening_response = client.get(f"/screenings/{screening_id}")
+    assert screening_response.status_code == 200
+    assert screening_response.json()["status"] == "completed"
+
+    history_response = client.get(f"/screenings/{screening_id}/history")
+    assert len(history_response.json()) == 3
+    assert history_response.status_code == 200
+    assert history_response.json() == response.json()
+
+
+def test_status_update_rolls_back_when_history_fails():
+
+    patient_response = client.post(
+        "/patients",
+        json={
+            "full_name": "Ravi",
+            "date_of_birth": "1985-05-20",
+            "email": "ravi@example.com",
+        },
+    )
+
+    patient_id = patient_response.json()["id"]
+
+    screening = client.post(
+        "/screenings",
+        json={"patient_id": patient_id},
+    )
+    screening_id = screening.json()["id"]
+
+    def invalidate_history(mapper, connection, target):
+        target.to_status = None
+    
+    event.listen(ScreeningStatusHistory, "before_insert", invalidate_history)
+
+    try:
+        update_response = client.patch(
+            f"/screenings/{screening_id}/status",
+            json={"status": "in_progress"},
+        )
+    finally:
+        event.remove(ScreeningStatusHistory, "before_insert", invalidate_history)
+
+    assert update_response.status_code == 500
+
+    screening_after = client.get(f"/screenings/{screening_id}")
+    assert screening_after.status_code == 200
+    assert screening_after.json()["status"] == "scheduled"
+ 
+    response = client.get(f"/screenings/{screening_id}/history")
+    history_after = response.json()
+    
+    print(history_after)
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["screening_id"] == screening_id
+    assert response.json()[0]["from_status"] is None
+    assert response.json()[0]["to_status"] == "scheduled"

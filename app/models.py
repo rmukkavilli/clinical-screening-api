@@ -1,6 +1,7 @@
 from datetime import date
+from sqlalchemy import func
 
-from sqlalchemy import Date, String, ForeignKey
+from sqlalchemy import Date, DateTime, String, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -47,4 +48,32 @@ class Screening(Base):
         String(50),
         nullable=False,
         default="scheduled",
+    )
+
+class ScreeningStatusHistory(Base):
+    __tablename__ = "screening_status_history"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True
+    )
+
+    screening_id: Mapped[int] = mapped_column(
+        ForeignKey("screenings.id"),
+        nullable=False,
+    )
+
+    from_status: Mapped[str|None] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+
+    to_status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,       
+    )
+
+    changed_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
     )

@@ -13,6 +13,7 @@ from app.schemas import (
     ScreeningCreate,
     ScreeningResponse,
     ScreeningStatusUpdate,
+    ScreeningStatusHistoryResponse,
 )
 app = FastAPI()
 

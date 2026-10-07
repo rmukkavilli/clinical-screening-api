@@ -1,6 +1,8 @@
 from datetime import date
 from typing import Literal
 from pydantic import BaseModel, EmailStr, ConfigDict
+from datetime import datetime
+from pydantic import BaseModel, ConfigDict
 
 class PatientCreate(BaseModel):
     full_name: str
@@ -29,3 +31,12 @@ class ScreeningStatusUpdate(BaseModel):
         "completed",
         "failed",
     ]
+
+class ScreeningStatusHistoryResponse(BaseModel):
+    id: int
+    screening_id: int
+    from_status: str | None
+    to_status: str
+    changed_at: datetime
+    # convert the database objects returned by your query into the API’s response format.
+   # model_config = ConfigDict(from_attributes=True)
